@@ -15,9 +15,21 @@
 | node1 | 192.168.56.11 | Ubuntu 22.04 | 1G / 2.5G | 工作节点 |
 | node2 | 192.168.56.12 | Ubuntu 22.04 | 1G / 2.5G | 工作节点 |
 
-- 网卡 1：NAT（上网用）；网卡 2：Host-Only `192.168.56.0/24`（三台机器和宿主机互通）
+- 网卡：NAT + Host-Only 两块，分工见下
 - 宿主机：Windows 11 Home，16GB，VirtualBox + Vagrant 2.4.9
 - 文件：[Vagrantfile](Vagrantfile)、[provision.sh](provision.sh)（首次启动自动配置 hosts、阿里云源、时区、常用工具）
+
+### 两块网卡的分工
+
+| 网卡 | 系统里的名字 | 地址 | 作用 |
+|------|--------------|------|------|
+| 网卡 1：NAT | `enp0s3` | `10.0.2.15`（三台都一样） | **上网**：借 Windows 的网络访问外网（apt 下载、拉镜像） |
+| 网卡 2：Host-Only | `enp0s8` | `192.168.56.10/11/12` | **内部互通**：三台之间、以及 Windows ↔ 虚拟机（Termius 连的就是它） |
+
+- **为什么三台 NAT 地址都是 10.0.2.15 却不冲突：** 每台虚拟机的 NAT 是 VirtualBox 单独给它的一个“私有小网络”，彼此隔离，所以地址相同也没关系——但也因此三台**不能**靠 NAT 网卡互相访问。
+- **为什么还要 Host-Only：** 它把三台和 Windows 放进同一个网段 `192.168.56.0/24`，Windows 上会多一块 “VirtualBox Host-Only Ethernet Adapter”，地址是 `192.168.56.1`。
+- **主机名为什么能 ping 通：** provision.sh 往 `/etc/hosts` 写了 `192.168.56.10 master` 等三行，相当于一个本地的简易 DNS。
+- **自己查看：** 在任意一台执行 `ip -br a`，能看到 `enp0s3` 和 `enp0s8` 两块网卡及其地址。
 
 ## 步骤
 

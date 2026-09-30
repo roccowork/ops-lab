@@ -1,6 +1,6 @@
 # 00 · 用 Vagrant 搭建 3 节点实验环境
 
-> 状态：📝 文档已写，待验证
+> 状态：✅ 已跑通（2026-09-30）
 
 ## 目标
 一条命令创建 3 台可互相用主机名访问的 Ubuntu 虚拟机，master 能免密 SSH 到两台 node，并保存一个干净快照，后面任何实验搞坏了都能一键还原。
@@ -21,10 +21,6 @@
 
 ## 步骤
 
-### 0. 处理旧环境
-你之前的 `ansible-lab` 三台虚拟机目前是“已休眠”，不占内存，可以先保留。
-**不要新旧两套同时运行**：内存不够，IP 也可能冲突。确认新环境没问题后，再到旧目录执行 `vagrant destroy` 删除。
-
 ### 1. 启动
 在 Windows PowerShell 中：
 ```powershell
@@ -35,16 +31,16 @@ vagrant status
 第一次会依次创建 master、node1、node2 并执行 provision.sh，大约 5–10 分钟。
 
 > 📸 截图：`vagrant status` 显示 3 台都是 `running`
+![vagrant status 三台 running](images/01-vagrant-status.png)
 
 ### 2. 验证网络
-```powershell
-vagrant ssh master
-```
+> 登录某台机器有两种方式，任选其一：Termius 打开对应标签页（见第 6 步），或在 `00-lab-env` 目录执行 `vagrant ssh 名字`。下文只写“在 xx 上”。
+
 在 master 上：
 ```bash
-ping -c 2 node1
+ping -c 2 node1 #2表示master向node1发送2个数据包就停止ping
 ping -c 2 node2
-ping -c 2 mirrors.aliyun.com   # 能上网
+ping -c 2 mirrors.aliyun.com   # master能上网
 ```
 
 ### 3. 配置 master → node 免密 SSH
@@ -52,21 +48,16 @@ ping -c 2 mirrors.aliyun.com   # 能上网
 
 在 **master** 上：
 ```bash
-ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519
-mkdir -p /vagrant/.keys
+ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519 #ed25519（现代安全算法）
+mkdir -p /vagrant/.keys #vagrant 是共享目录
 cp ~/.ssh/id_ed25519.pub /vagrant/.keys/master.pub
-exit
 ```
 `/vagrant` 是共享文件夹，对应宿主机的 `00-lab-env` 目录，三台机器都能看到，用它来传公钥。`.keys/` 已加入 `.gitignore`，不会提交。
 
 分别在 **node1**、**node2** 上：
-```powershell
-vagrant ssh node1
-```
 ```bash
 cat /vagrant/.keys/master.pub >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
-exit
 ```
 
 回到 **master** 验证：
@@ -77,6 +68,7 @@ ssh node2 hostname
 输出分别是 `node1`、`node2`，且没有要求输入密码，即成功。
 
 > 📸 截图：master 上 `ssh node1 hostname` 和 `ssh node2 hostname` 的输出
+![master 免密登录 node1、node2](images/02-ssh-nopass.png)
 
 ### 4. 保存干净快照
 ```powershell
@@ -86,6 +78,7 @@ vagrant snapshot list
 之后任何实验搞乱了：`vagrant snapshot restore base` 一键回到这里。
 
 > 📸 截图：`vagrant snapshot list` 显示三台都有 `base`
+![三台都有 base 快照](images/03-snapshot-list.png)
 
 ### 5. 切换内存档位（做 K8s / ELK 时再用）
 ```powershell
@@ -94,11 +87,33 @@ $env:LAB_PROFILE="light"; vagrant reload   # 切回默认
 ```
 `$env:` 只在当前 PowerShell 窗口有效，新开窗口默认是 light。
 
+### 6. 用 SSH 工具连接（Termius）
+比 `vagrant ssh` 方便：3 台各开一个标签页，自带 SFTP 传文件。每台新建一个 Host：
+
+| 字段 | 填写 |
+|------|------|
+| Address | `192.168.56.10` / `.11` / `.12` |
+| Port | 22 |
+| Username | `vagrant`（Password 留空） |
+| Key | Import `00-lab-env\.vagrant\machines\<名字>\virtualbox\private_key` |
+
+`vagrant destroy` 重建后私钥会变，需重新导入。
+
+**两套密钥别搞混：**
+
+| 密钥 | 谁生成 | 用途 |
+|------|--------|------|
+| `.vagrant\machines\<名字>\virtualbox\private_key` | 首次 `vagrant up` 时 Vagrant 自动生成，每台一把 | Windows → 虚拟机（Termius、`vagrant ssh`） |
+| master 的 `~/.ssh/id_ed25519` | 第 3 步手动 `ssh-keygen` | master → node1/node2（Ansible 用） |
+
+> ⚠️ 登录时提示 `New release '24.04' available`，**不要**执行 `do-release-upgrade`：三台系统版本要保持一致，后续文档都按 22.04 写。
+
 ## 验证清单
-- [ ] `vagrant status` 三台 running
-- [ ] master 能 `ping node1`、`ping node2`、能上网
-- [ ] master `ssh node1 hostname` 不要密码
-- [ ] `vagrant snapshot list` 有 base
+- [x] `vagrant status` 三台 running
+- [x] master 能 `ping node1`、`ping node2`、能上网
+- [x] master `ssh node1 hostname` 不要密码
+- [x] `vagrant snapshot list` 有 base
+- [x] Termius 能分别登录 3 台
 
 ## 常用命令速查
 

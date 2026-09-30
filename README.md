@@ -14,7 +14,7 @@
 | # | 实验 | 目录 | 学到什么 | 状态 |
 |---|------|------|----------|------|
 | 00 | 用 Vagrant 搭建 3 节点实验环境 + SSH 免密 + 快照 | [00-lab-env](00-lab-env/) | Vagrant、VirtualBox 网卡模式（NAT / Host-Only）、SSH 密钥 | ✅ |
-| 01 | 系统初始化：用户、SSH 加固、防火墙、时间同步、systemd | [01-linux-basics](01-linux-basics/) | Linux 基础运维 | ⬜ |
+| 01 | 系统初始化：用户、SSH 加固、防火墙、时间同步、systemd | [01-linux-basics](01-linux-basics/01-system-init.md) | Linux 基础运维 | 📝 待验证 |
 | 02 | 手动部署 Nginx + MySQL + Redis，并做反向代理 | [01-linux-basics](01-linux-basics/) | 中间件安装、配置、排障 | ⬜ |
 | 03 | MySQL 主从复制 + 备份与恢复 | [01-linux-basics](01-linux-basics/) | 数据库高可用基础 | ⬜ |
 | 04 | Ansible：inventory、ad-hoc、playbook | [02-ansible](02-ansible/) | 批量管理 | ⬜ |

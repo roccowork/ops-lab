@@ -33,7 +33,7 @@ uptime               # 运行时间和负载
 在 **node1** 上：
 ```bash
 sudo useradd -m -s /bin/bash ops     # -m 建家目录，-s 指定 shell
-sudo passwd ops                      # 设置密码（sudo 时要用）
+sudo passwd ops                      # 设置密码（sudo 时要用）;密码也是ops
 sudo usermod -aG sudo ops            # 加入 sudo 组，获得管理员权限
 id ops                               # 确认：groups 里有 sudo
 ```
@@ -55,6 +55,7 @@ ssh -t ops@node1 'sudo -l'     # -t 分配终端才能输密码；输入 ops 的
 ```
 
 > 📸 截图：master 上 `ssh ops@node1 whoami` 输出 `ops`
+![alt text](images/01-system-init-image.png)
 
 ### 3. SSH 加固
 **目标：** 禁止 root 登录、禁止密码登录（只认密钥）、限制尝试次数、断开长时间无响应的连接。
@@ -93,6 +94,8 @@ ssh -o PubkeyAuthentication=no ops@node1
 （Vagrant 的 Ubuntu 镜像默认已关闭密码登录，所以改之前也是这个结果。我们仍然显式写进 `10-hardening.conf`：基线要写明、可审计，不依赖镜像默认值。）
 
 > 📸 截图：`sshd -T` 的四行结果 + master 上 `Permission denied (publickey)`
+![alt text](images/01-system-init-image-1.png)
+![alt text](images/01-system-init-image-2.png)
 
 ### 4. 防火墙 ufw
 **原理：** 默认拒绝所有进入的连接，只按需放行。`ufw` 是 Ubuntu 上对 iptables/nftables 的简化封装（CentOS/RHEL 上对应 `firewalld`）。
@@ -132,6 +135,8 @@ sudo ufw delete <编号>
 ```
 
 > 📸 截图：master 上 8080 放行前失败、放行后 succeeded 的两次 `nc` 输出
+![alt text](images/01-system-init-image-3.png)
+![alt text](images/01-system-init-image-4.png)
 
 ### 5. 时间同步
 **为什么：** 多台机器时间不一致，会导致日志对不上、证书校验失败、K8s / etcd 集群出错。
@@ -148,6 +153,7 @@ timedatectl timesync-status        # Server 一行应显示 ntp.aliyun.com 的�
 刚重启时可能还没同步上，等几十秒再看一次。
 
 > 📸 截图：`timedatectl timesync-status` 显示已连上阿里云 NTP
+![alt text](images/01-system-init-image-5.png)
 
 ### 6. 用 systemd 托管自己的程序
 **为什么：** 生产环境的程序不能靠“在终端里跑着”——关窗口就停，崩了也没人管。交给 systemd 后：开机自启、崩溃自动重启、日志统一进 journal。
@@ -193,7 +199,7 @@ EOF
 sudo systemctl daemon-reload                 # 新增/修改 unit 文件后必须执行
 sudo systemctl enable --now heartbeat        # enable=开机自启，--now=立即启动
 systemctl status heartbeat                   # Active: active (running)
-journalctl -u heartbeat -n 5                 # 看最近 5 行日志
+sudo journalctl -u heartbeat -n 5            # 看最近 5 行日志（系统服务日志要 sudo 才能看）
 ```
 
 **模拟崩溃，看它自动恢复：**
@@ -201,10 +207,10 @@ journalctl -u heartbeat -n 5                 # 看最近 5 行日志
 sudo kill -9 $(systemctl show -p MainPID --value heartbeat)
 sleep 5
 systemctl status heartbeat                   # 又是 active (running)，PID 变了
-journalctl -u heartbeat -n 10                # 能看到 killed 和重新 Started 的记录
+sudo journalctl -u heartbeat -n 10           # 能看到 killed 和重新 Started 的记录
 ```
 
-> 📸 截图：`journalctl -u heartbeat -n 10` 中被 kill 后自动重启的记录
+> 📸 截图：`sudo journalctl -u heartbeat -n 10` 中被 kill 后自动重启的记录
 
 ## 故障演练（选做，推荐）
 **场景：** SSH 配置写错了。
@@ -236,8 +242,8 @@ sudo sshd -t && echo "config OK"
 | CPU / 内存占用最高的进程 | `top`（按 M 按内存排序）、`ps aux --sort=-%mem \| head` |
 | 内存、磁盘 | `free -h`、`df -h`、`du -sh /var/log/*` |
 | 哪些端口在监听、被谁占用 | `ss -tlnp`、`sudo lsof -i :80` |
-| 服务状态和日志 | `systemctl status 服务名`、`journalctl -u 服务名 -f` |
-| 系统日志 | `journalctl -xe`、`tail -f /var/log/syslog` |
+| 服务状态和日志 | `systemctl status 服务名`、`sudo journalctl -u 服务名 -f` |
+| 系统日志 | `sudo journalctl -xe`、`tail -f /var/log/syslog` |
 | 网络通不通 | `ping`、`nc -zv 主机 端口`、`curl -v URL` |
 | 域名解析 | `dig 域名`、`cat /etc/hosts` |
 | 路由 | `ip r` |
@@ -246,7 +252,7 @@ sudo sshd -t && echo "config OK"
 ## 踩坑记录
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| | | |
+| `journalctl -u heartbeat` 显示 Hint 和 -- No entries -- | vagrant 用户不在 adm / systemd-journal 组，只能看自己的日志，看不到系统服务日志 | 加 `sudo`；或 `sudo usermod -aG systemd-journal $USER` 后重新登录 |
 
 （遇到报错把完整输出贴给 Claude，修正后记到这里）
 

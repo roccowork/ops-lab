@@ -24,3 +24,9 @@ vault-password*
 Thumbs.db
 .vscode/
 .idea/
+
+# Vagrant
+.vagrant/
+.keys/
+*.log
+

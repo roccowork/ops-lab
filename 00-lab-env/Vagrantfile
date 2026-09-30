@@ -1,0 +1,37 @@
+# ops-lab 实验环境：3 台 Ubuntu 22.04
+#
+# 内存档位（按实验切换，改完执行 vagrant reload）：
+#   light : 默认，Linux / Ansible / Docker 实验
+#   k8s   : K8s、ELK 等重型实验
+# PowerShell 切换示例：$env:LAB_PROFILE="k8s"; vagrant reload
+
+PROFILES = {
+  "light" => { "master" => 1024, "node" => 1024 },
+  "k8s"   => { "master" => 4096, "node" => 2560 },
+}
+profile_name = ENV.fetch("LAB_PROFILE", "light")
+profile = PROFILES.fetch(profile_name) { abort "未知 LAB_PROFILE=#{profile_name}，可选：#{PROFILES.keys.join(', ')}" }
+
+NODES = [
+  { name: "master", ip: "192.168.56.10", mem: profile["master"] },
+  { name: "node1",  ip: "192.168.56.11", mem: profile["node"] },
+  { name: "node2",  ip: "192.168.56.12", mem: profile["node"] },
+]
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64"
+  config.vm.box_check_update = false
+
+  NODES.each do |n|
+    config.vm.define n[:name] do |node|
+      node.vm.hostname = n[:name]
+      node.vm.network "private_network", ip: n[:ip]
+      node.vm.provider "virtualbox" do |vb|
+        vb.name   = "ops-lab-#{n[:name]}"
+        vb.memory = n[:mem]
+        vb.cpus   = 2
+      end
+      node.vm.provision "shell", path: "provision.sh"
+    end
+  end
+end

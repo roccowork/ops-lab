@@ -55,7 +55,7 @@ ssh -t ops@node1 'sudo -l'     # -t 分配终端才能输密码；输入 ops 的
 ```
 
 > 📸 截图：master 上 `ssh ops@node1 whoami` 输出 `ops`
-![master 以 ops 免密登录并具备 sudo 权限](images/01-ops-user-sudo.png)
+![master 以 ops 免密登录并具备 sudo 权限](images/lab01-01-ops-user-sudo.png)
 
 ### 3. SSH 加固
 **目标：** 禁止 root 登录、禁止密码登录（只认密钥）、限制尝试次数、断开长时间无响应的连接。
@@ -94,8 +94,8 @@ ssh -o PubkeyAuthentication=no ops@node1
 （Vagrant 的 Ubuntu 镜像默认已关闭密码登录，所以改之前也是这个结果。我们仍然显式写进 `10-hardening.conf`：基线要写明、可审计，不依赖镜像默认值。）
 
 > 📸 截图：`sshd -T` 的四行结果 + master 上 `Permission denied (publickey)`
-![sshd -T 显示加固配置已生效](images/02-sshd-effective.png)
-![密码登录被拒绝 Permission denied (publickey)](images/03-password-denied.png)
+![sshd -T 显示加固配置已生效](images/lab01-02-sshd-effective.png)
+![密码登录被拒绝 Permission denied (publickey)](images/lab01-03-password-denied.png)
 
 ### 4. 防火墙 ufw
 **原理：** 默认拒绝所有进入的连接，只按需放行。`ufw` 是 Ubuntu 上对 iptables/nftables 的简化封装（CentOS/RHEL 上对应 `firewalld`）。
@@ -135,8 +135,8 @@ sudo ufw delete <编号>
 ```
 
 > 📸 截图：master 上 8080 放行前失败、放行后 succeeded 的两次 `nc` 输出
-![放行前 8080 连接超时](images/04-ufw-blocked.png)
-![放行后 8080 连接成功](images/05-ufw-allowed.png)
+![放行前 8080 连接超时](images/lab01-04-ufw-blocked.png)
+![放行后 8080 连接成功](images/lab01-05-ufw-allowed.png)
 
 ### 5. 时间同步
 **为什么：** 多台机器时间不一致，会导致日志对不上、证书校验失败、K8s / etcd 集群出错。
@@ -153,7 +153,7 @@ timedatectl timesync-status        # Server 一行应显示 ntp.aliyun.com 的�
 刚重启时可能还没同步上，等几十秒再看一次。
 
 > 📸 截图：`timedatectl timesync-status` 显示已连上阿里云 NTP
-![已同步阿里云 NTP](images/06-ntp-aliyun.png)
+![已同步阿里云 NTP](images/lab01-06-ntp-aliyun.png)
 
 ### 6. 用 systemd 托管自己的程序
 **为什么：** 生产环境的程序不能靠“在终端里跑着”——关窗口就停，崩了也没人管。交给 systemd 后：开机自启、崩溃自动重启、日志统一进 journal。
@@ -211,7 +211,7 @@ sudo journalctl -u heartbeat -n 10           # 能看到 killed 和重新 Starte
 ```
 
 > 📸 截图：`sudo journalctl -u heartbeat -n 10` 中被 kill 后自动重启的记录
-![heartbeat 被 kill 后 systemd 自动重启](images/07-systemd-restart.png)
+![heartbeat 被 kill 后 systemd 自动重启](images/lab01-07-systemd-restart.png)
 
 ## 故障演练（选做，推荐）
 **场景：** SSH 配置写错了。

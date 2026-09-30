@@ -14,23 +14,23 @@
 | # | 实验 | 目录 | 学到什么 | 状态 |
 |---|------|------|----------|------|
 | 00 | 用 Vagrant 搭建 3 节点实验环境 + SSH 免密 + 快照 | [00-lab-env](00-lab-env/) | Vagrant、VirtualBox 网卡模式（NAT / Host-Only）、SSH 密钥 | ✅ |
-| 01 | 系统初始化：用户、SSH 加固、防火墙、时间同步、systemd | [01-linux-basics](01-linux-basics/01-system-init.md) | Linux 基础运维 | ✅ |
-| 02 | 手动部署 Nginx + MySQL + Redis，并做反向代理 | [01-linux-basics](01-linux-basics/02-middleware.md) | 中间件安装、配置、排障 | 📝 待验证 |
-| 03 | MySQL 主从复制 + 备份与恢复 | [01-linux-basics](01-linux-basics/) | 数据库高可用基础 | ⬜ |
-| 04 | Ansible：inventory、ad-hoc、playbook | [02-ansible](02-ansible/) | 批量管理 | ⬜ |
-| 05 | Ansible role 化：把实验 01、02 自动化，重跑 `changed=0` | [02-ansible](02-ansible/) | 幂等、模板、变量、Vault | ⬜ |
-| 06 | Docker 基础 + 编写 Dockerfile 构建自己的镜像 | [03-docker](03-docker/) | 镜像、容器、分层、多阶段构建 | ⬜ |
-| 07 | Docker Compose 部署 Web + MySQL + Redis | [03-docker](03-docker/) | 多容器编排、网络、数据卷 | ⬜ |
-| 08 | 虚拟机上手动装 Prometheus + node_exporter + Grafana | [06-observability](06-observability/) | 指标采集、PromQL、面板 | ⬜ |
-| 09 | Alertmanager：服务挂掉 1 分钟内收到告警 | [06-observability](06-observability/) | 告警规则、通知 | ⬜ |
-| 10 | ELK 单节点：收集 Nginx 日志并在 Kibana 查询 | [06-observability](06-observability/) | 日志采集与检索 | ⬜ |
-| 11 | kubeadm 安装 3 节点集群（装一次，懂原理） | [04-kubernetes](04-kubernetes/) | 控制面组件、证书、containerd | ⬜ |
-| 12 | K3s 集群 + 部署应用（Deployment / Service / Ingress / ConfigMap / PV） | [04-kubernetes](04-kubernetes/) | K8s 核心对象 | ⬜ |
-| 13 | Helm：安装现成 chart + 编写自己的 chart | [04-kubernetes](04-kubernetes/) | 应用打包与发布 | ⬜ |
-| 14 | kube-prometheus-stack + Loki：集群监控与日志 | [06-observability](06-observability/) | 企业级可观测性方案 | ⬜ |
-| 15 | GitHub Actions：提交代码自动构建并推送镜像 | [05-cicd](05-cicd/) | CI 流水线 | ⬜ |
-| 16 | Argo CD：GitOps 自动部署 + 回滚 | [05-cicd](05-cicd/) | CD、GitOps | ⬜ |
-| 17 | Terraform：云上创建并销毁 VPC + 云主机（需云账号） | [07-terraform](07-terraform/) | 基础设施即代码 | ⬜ |
+| 01 | 系统初始化：用户、SSH 加固、防火墙、时间同步、systemd | [linux](linux/lab01-system-init.md) | Linux 基础运维 | ✅ |
+| 02 | 手动部署 Nginx + MySQL + Redis，并做反向代理 | [linux](linux/lab02-middleware.md) | 中间件安装、配置、排障 | 📝 待验证 |
+| 03 | MySQL 主从复制 + 备份与恢复 | [linux](linux/) | 数据库高可用基础 | ⬜ |
+| 04 | Ansible：inventory、ad-hoc、playbook | [ansible](ansible/) | 批量管理 | ⬜ |
+| 05 | Ansible role 化：把实验 01、02 自动化，重跑 `changed=0` | [ansible](ansible/) | 幂等、模板、变量、Vault | ⬜ |
+| 06 | Docker 基础 + 编写 Dockerfile 构建自己的镜像 | [docker](docker/) | 镜像、容器、分层、多阶段构建 | ⬜ |
+| 07 | Docker Compose 部署 Web + MySQL + Redis | [docker](docker/) | 多容器编排、网络、数据卷 | ⬜ |
+| 08 | 虚拟机上手动装 Prometheus + node_exporter + Grafana | [observability](observability/) | 指标采集、PromQL、面板 | ⬜ |
+| 09 | Alertmanager：服务挂掉 1 分钟内收到告警 | [observability](observability/) | 告警规则、通知 | ⬜ |
+| 10 | ELK 单节点：收集 Nginx 日志并在 Kibana 查询 | [observability](observability/) | 日志采集与检索 | ⬜ |
+| 11 | kubeadm 安装 3 节点集群（装一次，懂原理） | [kubernetes](kubernetes/) | 控制面组件、证书、containerd | ⬜ |
+| 12 | K3s 集群 + 部署应用（Deployment / Service / Ingress / ConfigMap / PV） | [kubernetes](kubernetes/) | K8s 核心对象 | ⬜ |
+| 13 | Helm：安装现成 chart + 编写自己的 chart | [kubernetes](kubernetes/) | 应用打包与发布 | ⬜ |
+| 14 | kube-prometheus-stack + Loki：集群监控与日志 | [observability](observability/) | 企业级可观测性方案 | ⬜ |
+| 15 | GitHub Actions：提交代码自动构建并推送镜像 | [cicd](cicd/) | CI 流水线 | ⬜ |
+| 16 | Argo CD：GitOps 自动部署 + 回滚 | [cicd](cicd/) | CD、GitOps | ⬜ |
+| 17 | Terraform：云上创建并销毁 VPC + 云主机（需云账号） | [terraform](terraform/) | 基础设施即代码 | ⬜ |
 | ∞ | 故障演练：每个实验都故意弄坏一次并写复盘 | [troubleshooting](troubleshooting/) | 排障思路 | ⬜ |
 
 可选进阶（内存允许再做）：Kyverno 策略、Cilium 网络、kubeadm 集群升级。

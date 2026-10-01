@@ -1,6 +1,6 @@
 # 03 · MySQL 主从复制 + 备份与恢复
 
-> 状态：📝 文档已写，待验证
+> 状态：✅ 已跑通（2026-10-01）
 
 ## 目标
 在实验 02 的 MySQL 基础上做两件 DBA/运维的核心工作：
@@ -100,7 +100,7 @@ sudo systemctl restart mysql
 sudo mysql < /vagrant/labdb-init.sql
 sudo mysql -e "SELECT * FROM labdb.visit; SELECT @@gtid_executed;"
 ```
-能看到实验 02 写入的数据，`gtid_executed` 和主库导出时一致。
+能看到实验 02 写入的数据(visit是之前手动创建的表)，`gtid_executed` 和主库导出时一致。
 
 ### A5. 接上主库并启动复制（node1）
 ```bash
@@ -130,6 +130,7 @@ Last_SQL_Error:       （空）
 **两个 Yes 是主从健康的标志，面试必问。** 哪个是 No 就看对应的 `Last_IO_Error` / `Last_SQL_Error`。
 
 > 📸 截图：`SHOW REPLICA STATUS` 两个 Yes + `Seconds_Behind_Source: 0`
+![alt text](images/lab03-mysql-replication-backup-image.png)
 
 ### A6. 验证同步（master → node2，node1 上看）
 在 **master** 上往主库写：
@@ -143,6 +144,7 @@ sudo mysql -e "SELECT * FROM labdb.visit ORDER BY id DESC LIMIT 3;"
 能看到 `repl-test` 即同步成功。再在 master 上 `CREATE TABLE` 一张新表，node1 上 `SHOW TABLES` 也会出现——DDL 同样会复制。
 
 > 📸 截图：master 写入，node1 查到 `repl-test`
+![alt text](images/lab03-mysql-replication-backup-image-1.png)
 
 ### A7. 从库设为只读（node1）
 从库被误写会和主库数据不一致，最终导致复制中断。生产上从库必须只读：
@@ -159,7 +161,7 @@ sudo mysql -e "INSERT INTO labdb.visit (who) VALUES ('write-on-replica');"
 - 复制线程不受影响：重启后复制会自动恢复，再跑一次 A5 的 `SHOW REPLICA STATUS` 确认两个 Yes。
 
 > 📸 截图：从库写入被拒绝 ERROR 1290
-
+![alt text](images/lab03-mysql-replication-backup-image-2.png)
 ---
 
 ## B. 备份与时间点恢复（node2）
@@ -173,18 +175,18 @@ sudo mysqldump --databases labdb --single-transaction --routines --triggers \
   --source-data=2 --set-gtid-purged=OFF \
   | gzip > /backup/labdb-$(date +%F_%H%M).sql.gz
 ls -lh /backup
-zcat /backup/labdb-*.sql.gz | grep -m1 "CHANGE REPLICATION SOURCE"
+zcat /backup/labdb-*.sql.gz | grep -iE "change (master|replication)"
 ```
-最后一行输出类似：
+最后一行输出类似（Ubuntu 22.04 的 mysqldump 用旧写法 `CHANGE MASTER TO`，新版本是 `CHANGE REPLICATION SOURCE TO`，含义相同）：
 ```
--- CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE='binlog.000003', SOURCE_LOG_POS=1234;
+-- CHANGE MASTER TO MASTER_LOG_FILE='binlog.000005', MASTER_LOG_POS=1179;
 ```
 **记下这个文件名和位置**，它是“备份在 binlog 里的时间点”，恢复时从这里开始回放。
 
 | 参数 | 作用 |
 |------|------|
 | `--source-data=2` | 在备份文件里以注释形式记录当时的 binlog 位置 |
-| `--set-gtid-purged=OFF` | 不写 GTID 信息，这样备份能导回**同一台**已开 GTID 的库（和 A3 正好相反：A3 是给新从库用的） |
+| `--set-gtid-purged=OFF` | 不写 GTID 信息，这样备份能导回**同一台**已开 GTID 的库（和 A3 正好相反：A3 是给新从库用的），备份给新机器用ON,备份要导回原机器用OFF |
 | `--routines --triggers` | 连存储过程、触发器一起备份 |
 
 **异地副本**（备份和数据放在同一台机器，机器坏了一起没）。在 **master** 上：
@@ -192,7 +194,8 @@ zcat /backup/labdb-*.sql.gz | grep -m1 "CHANGE REPLICATION SOURCE"
 mkdir -p ~/backup && scp node2:/backup/labdb-*.sql.gz ~/backup/ && ls -lh ~/backup
 ```
 
-> 📸 截图：`/backup` 下的备份文件 + 备份里的 `CHANGE REPLICATION SOURCE` 那一行
+> 📸 截图：`/backup` 下的备份文件 + 备份里的 `CHANGE MASTER TO` 那一行
+![alt text](images/lab03-mysql-replication-backup-image-3.png)
 
 ### B2. 备份后继续产生数据
 在 **master** 上，模拟备份之后业务还在写：
@@ -215,12 +218,13 @@ sudo mysql -e "SHOW DATABASES;"          # labdb 也没了 —— 复制不是�
 ```
 
 > 📸 截图：node1 上 labdb 也消失了
+![alt text](images/lab03-mysql-replication-backup-image-4.png)
 
 ### B4. 在 binlog 里找到删库的位置（node2）
 ```bash
 sudo mysql -e "SHOW BINARY LOGS;"
 # 在 B1 记下的那个 binlog 文件里找 DROP（文件名按你的实际情况改）
-sudo mysqlbinlog -v /var/lib/mysql/binlog.000003 | grep -n -B 20 "DROP DATABASE"
+sudo mysqlbinlog -v /var/lib/mysql/binlog.000005 | grep -n -B 20 "DROP DATABASE"
 ```
 输出里 `DROP DATABASE` 上方会有这样一段：
 ```
@@ -233,6 +237,9 @@ DROP DATABASE labdb
 ```
 **删库事务从它的 GTID 事件开始**，所以停止位置取 GTID 那一段上面的 `# at`（例子里是 `2345`）。
 
+![alt text](images/lab03-mysql-replication-backup-image-5.png)
+实际是#1520
+
 ### B5. 恢复：全量 + binlog 回放（node2）
 ```bash
 # 1) 导入全量备份 —— 回到备份那一刻
@@ -241,8 +248,8 @@ sudo mysql -e "SELECT * FROM labdb.visit;"     # 此时还没有 after-backup-1/
 
 # 2) 回放 binlog：从备份位置到删库之前（数字换成你 B1、B4 记下的）
 sudo mysqlbinlog --skip-gtids \
-  --start-position=1234 --stop-position=2345 \
-  /var/lib/mysql/binlog.000003 | sudo mysql
+  --start-position=1179 --stop-position=1520 \
+  /var/lib/mysql/binlog.000005 | sudo mysql
 
 sudo mysql -e "SELECT * FROM labdb.visit;"     # after-backup-1/2 回来了
 ```
@@ -259,15 +266,16 @@ sudo mysql -e "SHOW REPLICA STATUS\G" | grep -E "Running:|Behind"
 数据和主库一致，两个 Yes，说明这次恢复对主从都生效了。
 
 > 📸 截图：恢复后 node2 和 node1 都能查到 `after-backup-1/2`
-
+![alt text](images/lab03-mysql-replication-backup-image-6.png)
+![alt text](images/lab03-mysql-replication-backup-image-7.png)
 ---
 
 ## 验证清单
-- [ ] node1 `SHOW REPLICA STATUS`：IO/SQL 两个 Yes，延迟 0
-- [ ] master 往主库写，node1 立刻能查到
-- [ ] 从库写入报 ERROR 1290（super_read_only）
-- [ ] `/backup` 有压缩备份，master `~/backup` 有异地副本
-- [ ] 误删库后用“全量 + binlog”恢复，`after-backup-1/2` 没丢，从库同步恢复
+- [x] node1 `SHOW REPLICA STATUS`：IO/SQL 两个 Yes，延迟 0
+- [x] master 往主库写，node1 立刻能查到
+- [x] 从库写入报 ERROR 1290（super_read_only）
+- [x] `/backup` 有压缩备份，master `~/backup` 有异地副本
+- [x] 误删库后用“全量 + binlog”恢复，`after-backup-1/2` 没丢，从库同步恢复
 
 ## 故障演练（选做，推荐）
 1. **从库宕机追数据：** node1 `sudo systemctl stop mysql`，master 往主库插几行，再启动 node1 的 MySQL —— 复制自动续上，数据补齐。说明 GTID 自动定位的作用。
@@ -279,7 +287,8 @@ sudo mysql -e "SHOW REPLICA STATUS\G" | grep -E "Running:|Behind"
 ## 踩坑记录
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| | | |
+| `replication.cnf` 末尾多了一行 `;` | 手误 | 无害（`;` 开头在 MySQL 配置里是注释）；`sudo sed -i '/^;$/d' 文件` 删除 |
+| 备份里 grep 不到 `CHANGE REPLICATION SOURCE` | Ubuntu 22.04 的 mysqldump 仍写旧语法 `CHANGE MASTER TO` | `grep -iE "change (master\|replication)"`；文档已修正 |
 
 （遇到报错把完整输出贴给 Claude，修正后记到这里）
 

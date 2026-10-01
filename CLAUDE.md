@@ -26,10 +26,11 @@
 - 不要执行 `do-release-upgrade`，三台都保持 22.04
 
 ## 各机器当前状态（随实验更新）
-- **node1**：实验 01 已完成（ops 用户有 sudo；SSH 禁止 root 登录和密码登录；开了 ufw，放行了 OpenSSH 和 Nginx HTTP；时间同步用阿里云 NTP；有 heartbeat.service）。实验 02 装了 Nginx 反向代理 + 负载均衡，web-backend 监听 :8081
-- **node2**：web-backend :8081；MySQL 8.0（库 labdb，账号 `app'@'192.168.56.%` 密码 App@12345，bind 已放开）；Redis（bind 127.0.0.1 192.168.56.12，requirepass Redis@12345）
-- **master**：作为客户端发起访问；Redis 曾误装后已 purge
-- 这些服务实验 03（MySQL 主从）和 Prometheus 实验还会用，**不要清理**
+- **node1**：实验 01 已完成（ops 用户有 sudo；SSH 禁止 root 登录和密码登录；开了 ufw，放行了 OpenSSH 和 Nginx HTTP；时间同步用阿里云 NTP；有 heartbeat.service）。实验 02 装了 Nginx 反向代理 + 负载均衡，web-backend 监听 :8081。实验 03 装了 MySQL 8.0 **从库**（server-id=2，GTID 复制 node2，read_only + super_read_only）
+- **node2**：web-backend :8081；MySQL 8.0 **主库**（server-id=1，开启 GTID，配置在 `/etc/mysql/mysql.conf.d/replication.cnf`；库 labdb，账号 `app'@'192.168.56.%` 密码 App@12345，复制账号 `repl'@'192.168.56.11` 密码 Repl@12345）；全量备份放在 `/backup`（属主 vagrant）；Redis（bind 127.0.0.1 192.168.56.12，requirepass Redis@12345）
+- **master**：作为客户端发起访问，装了 mysql-client；`~/backup` 存放异地备份副本；Redis 曾误装后已 purge
+- 这些服务后续实验（巡检脚本、Ansible、Prometheus）还会用，**不要清理**
+- Ubuntu 22.04 的 mysqldump 写的是旧语法 `CHANGE MASTER TO`，不是 `CHANGE REPLICATION SOURCE`
 
 ## 已知坑（1GB light 档）
 - MySQL 8 安装时会占满内存：apt 看起来卡住，SSH 新连接报 `end of file`。**等几分钟就好**，装完日常运行内存够用。用户已明确不需要为此改方案。
@@ -51,4 +52,5 @@
 
 ## 进度
 - ✅ 00 环境 · ✅ 01 系统初始化 · ✅ 02 中间件（2026-10-01）
-- 📝 03 MySQL 主从 + 备份恢复：文档已写待验证（node2 主库、node1 从库 GTID 复制；mysqldump + binlog 时间点恢复）
+- ✅ 03 MySQL 主从 + 备份恢复（2026-10-01）
+- 📝 04 Shell 巡检脚本 + cron：文档已写待验证（在 master 上通过 ssh 巡检两台 node；在 node2 上定时备份 MySQL）

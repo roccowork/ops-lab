@@ -30,3 +30,7 @@ Thumbs.db
 .keys/
 *.log
 
+# 数据库导出（实验 03 用 /vagrant 传文件）
+*.sql
+*.sql.gz
+

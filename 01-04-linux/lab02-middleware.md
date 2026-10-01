@@ -74,6 +74,7 @@ EOF
 
 sudo systemctl daemon-reload
 sudo systemctl enable --now web-backend
+sleep 2                         # 等进程开始监听端口，否则整段粘贴时 curl 会 Connection refused
 curl http://localhost:8081      # 输出 Hello from 本机名
 ```
 
@@ -131,8 +132,9 @@ for i in 1 2 3 4; do curl -s http://node1; done
 预期 node1、node2 交替出现。
 
 > 📸 截图：master 上 4 次 curl，node1 / node2 交替
+![alt text](images/lab02-middleware-image.png)
 
-### A4. 故障切换与 502
+### A4. 故障切换与 502 
 **一台后端挂了：** 在 **node2** 上：
 ```bash
 sudo systemctl stop web-backend
@@ -148,6 +150,7 @@ sudo tail -n 3 /var/log/nginx/lab_error.log  # connect() failed (111: Connection
 **502 的含义：** Nginx 自己是好的，但它身后的后端连不上。排查方向永远是“看 error.log → 查后端进程和端口”。
 
 > 📸 截图：502 响应 + error.log 里的 `Connection refused`
+![alt text](images/lab02-middleware-image-1.png)
 
 恢复两台后端：
 ```bash
@@ -207,6 +210,7 @@ EOF
 （命令行里写密码会有 `Using a password on the command line interface can be insecure` 警告，实验里忽略；生产用配置文件或交互输入。）
 
 > 📸 截图：master 远程执行后 `SELECT * FROM visit` 的结果
+![alt text](images/lab02-middleware-image-2.png)
 
 **远程连不上时按顺序查（面试高频）：**
 1. `ss -tlnp | grep 3306` —— 是不是只监听 127.0.0.1（bind-address）
@@ -229,7 +233,7 @@ redis-cli ping                  # PONG
 ```bash
 sudo sed -i 's/^bind 127.0.0.1 ::1/bind 127.0.0.1 192.168.56.12/' /etc/redis/redis.conf
 sudo sed -i 's/^# requirepass .*/requirepass Redis@12345/' /etc/redis/redis.conf
-grep -E '^(bind|requirepass)' /etc/redis/redis.conf   # 确认改成功
+sudo grep -E '^(bind|requirepass)' /etc/redis/redis.conf   # 确认改成功
 sudo systemctl restart redis-server
 ss -tlnp | grep 6379            # 192.168.56.12:6379
 ```
@@ -248,6 +252,7 @@ redis-cli -h node2 -a 'Redis@12345' TTL greeting                 # 剩余秒数
 `EX 60` 就是缓存的核心用法：数据放一段时间自动失效。
 
 > 📸 截图：NOAUTH 报错、PONG、GET 和 TTL 的输出
+![alt text](images/lab02-middleware-image-4.png)
 
 ### C4. 持久化：重启后数据还在吗
 ```bash
@@ -262,11 +267,11 @@ Redis 数据在内存里，但默认会用 **RDB 快照**定期存到磁盘（`/
 ---
 
 ## 验证清单
-- [ ] 浏览器能打开 `http://192.168.56.11`
-- [ ] master 连续 curl，node1 / node2 交替
-- [ ] 停一台后端，访问不受影响；全停出现 502，error.log 有 `Connection refused`
-- [ ] master 能用 app 账号远程读写 labdb
-- [ ] master 不带密码访问 Redis 报 NOAUTH，带密码正常；重启后 keep 仍在
+- [x] 浏览器能打开 `http://192.168.56.11`
+- [x] master 连续 curl，node1 / node2 交替
+- [x] 停一台后端，访问不受影响；全停出现 502，error.log 有 `Connection refused`
+- [x] master 能用 app 账号远程读写 labdb
+- [x] master 不带密码访问 Redis 报 NOAUTH，带密码正常；重启后 keep 仍在
 
 ## 故障演练（选做，推荐）
 1. **MySQL 远程拒绝：** 把 `bind-address` 改回 `127.0.0.1` 并重启，从 master 连接，看报什么错；按上面“按顺序查”的 4 步定位。
@@ -277,7 +282,13 @@ Redis 数据在内存里，但默认会用 **RDB 快照**定期存到磁盘（`/
 ## 踩坑记录
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| | | |
+| 整段粘贴 A2 后 `curl localhost:8081` 报 Connection refused | 服务刚启动，Python 还没开始监听端口，curl 执行得太快 | 稍等再 curl；文档已加 `sleep 2` |
+| Termius 连 master 报 `Connection closed with error: end of file`（TCP 已连上，SSH 握手前断开） | 1GB 内存被耗尽，sshd 无法 fork 新会话 | 多次重启 VM 后恢复；预防：加 2GB swap，必要时 VM 内存调到 2GB |
+| node2 装 MySQL 停在 `mysqld is running as pid ...`，另开终端也 SSH 不上 | MySQL 8 初始化吃满 1GB 内存；同时 needrestart 弹窗在等确认 | 等待/在 VirtualBox 控制台操作；卡死则重置后 `sudo dpkg --configure -a`；MySQL 设 `innodb_buffer_pool_size=128M`、`performance_schema=OFF` |
+| apt 装完弹出 Pending kernel upgrade / Daemons using outdated libraries | Ubuntu 22.04 的 needrestart：之前升级了内核但未重启 | 回车选默认 OK；空闲时 `sudo reboot`；改 `/etc/needrestart/needrestart.conf` 设 `$nrconf{restart}='a'` 免交互（Ansible 批量装也需要） |
+| `systemctl status` 输出后"卡住"，底部显示 `lines 1-12/12 (END)` | 进入了 less 分页器，不是卡死 | 按 `q` 退出；或加 `--no-pager` |
+| Redis 装到了 master 上 | 没看清节点 | `sudo apt purge -y redis-server redis-tools && sudo apt autoremove -y`，再删 `/var/lib/redis` |
+| `grep ... /etc/redis/redis.conf` 报 Permission denied | redis.conf 权限 640，属主 redis，普通用户不可读 | 加 `sudo`；文档已修正 |
 
 （遇到报错把完整输出贴给 Claude，修正后记到这里）
 

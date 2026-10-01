@@ -54,6 +54,7 @@ ssh node2 systemctl is-active not-exist;   echo "退出码 $?"     # inactive / 
 - 判断“成功/失败”看**退出码**：`0` 是成功，非 `0` 是失败。`if` 判断的就是退出码，不是输出的文字。
 
 ### A2. 写脚本
+在 **master** 上：
 ```bash
 mkdir -p ~/bin
 vim ~/bin/inspect.sh
@@ -180,6 +181,7 @@ bash -n ~/bin/inspect.sh && echo 语法OK     # -n 只检查语法，不执行
 | 结尾 `exit 1` | 让别的程序（cron、Jenkins、监控）能通过退出码知道“有问题” |
 
 ### A3. 手动运行
+在 **master** 上：
 ```bash
 ~/bin/inspect.sh
 echo "退出码 $?"
@@ -278,6 +280,7 @@ set +o pipefail
 记不住时可以去 crontab.guru 验证。cron 用的是系统时区，provision.sh 已经设成 Asia/Shanghai。
 
 ### C2. 巡检每 5 分钟跑一次（master）
+在 **master** 上：
 ```bash
 crontab -e            # 第一次会让选编辑器，选 vim 或 nano
 ```
@@ -300,7 +303,7 @@ grep CRON /var/log/syslog | tail -5   # cron 的执行记录
 > 📸 截图：`crontab -l` + `~/inspect` 下自动生成的多份报告
 
 ### C3. 备份每天 02:00 跑一次（node2）
-系统级的定时任务放在 `/etc/cron.d/`，比 `sudo crontab -e` 更直观，文件还能被 Ansible 管理：
+系统级的定时任务放在 `/etc/cron.d/`，比 `sudo crontab -e` 更直观，文件还能被 Ansible 管理。在 **node2** 上：
 ```bash
 sudo tee /etc/cron.d/mysql-backup >/dev/null <<'EOF'
 # 每天 02:00 备份 labdb

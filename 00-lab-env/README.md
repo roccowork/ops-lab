@@ -120,6 +120,23 @@ $env:LAB_PROFILE="light"; vagrant reload   # 切回默认
 
 > ⚠️ 登录时提示 `New release '24.04' available`，**不要**执行 `do-release-upgrade`：三台系统版本要保持一致，后续文档都按 22.04 写。
 
+### 7. 合盖 / 睡眠后虚拟机时间不对
+**现象：** 笔记本合盖后再打开，虚拟机时间停在合盖那一刻；cron 在睡眠期间没有运行，错过的任务也不会补跑。
+
+**原因：** Windows 睡眠时 VirtualBox 会把虚拟机整个冻结，唤醒后虚拟机从冻结处继续运行，时钟就慢了。`systemd-timesyncd` 隔一段时间才对一次时（最长约半小时），所以短时间内不会自己恢复。
+
+**解决：不用重启虚拟机**，重启时间同步服务让它马上对时。在 **master** 上：
+```bash
+sudo systemctl restart systemd-timesyncd
+for h in node1 node2; do ssh $h sudo systemctl restart systemd-timesyncd; done
+sleep 5
+date                                                    # master 自己
+for h in node1 node2; do echo -n "$h: "; ssh $h date; done
+timedatectl | grep synchronized                         # System clock synchronized: yes
+```
+- 循环里**不要写 `ssh master`**：master 没有配置免密登录自己，会弹出 `authenticity of host` 确认，而且也登不上。master 自己直接执行 `date`。
+- 需要虚拟机能上网（要连 NTP 服务器）。
+
 ## 验证清单
 - [x] `vagrant status` 三台 running
 - [x] master 能 `ping node1`、`ping node2`、能上网
@@ -143,7 +160,7 @@ $env:LAB_PROFILE="light"; vagrant reload   # 切回默认
 ## 踩坑记录
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| | | |
+| 合盖唤醒后虚拟机时间停在合盖时刻 | 宿主机睡眠，虚拟机被冻结；timesyncd 对时间隔长 | `sudo systemctl restart systemd-timesyncd`，见第 7 步 |
 
 （遇到报错把完整输出贴给 Claude，修正后记到这里）
 

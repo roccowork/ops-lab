@@ -190,6 +190,7 @@ ls ~/inspect/
 预期：每项都是 `[OK]`，最后 `共 0 个告警`，退出码 `0`。
 
 > 📸 截图：巡检输出全 OK + 退出码 0
+![alt text](images/lab04-shell-inspect-cron-image.png)
 
 ### A4. 制造告警
 在 **node2** 上停掉 Redis：
@@ -205,7 +206,7 @@ sudo systemctl stop redis-server
 再试磁盘告警：把脚本里 `DISK_WARN=80` 临时改成 `5`，再跑一次，两台都会报磁盘告警。**试完改回 80**，并在 node2 上 `sudo systemctl start redis-server`。
 
 > 📸 截图：出现 `[WARN]` + 退出码 1
-
+![alt text](images/lab04-shell-inspect-cron-image-1.png)
 ---
 
 ## B. 定时备份脚本（node2）
@@ -255,7 +256,7 @@ set +o pipefail
 - 不加 `pipefail` 时，管道的退出码 = **最后一个命令**（gzip）的退出码。mysqldump 失败了，gzip 照样成功压缩了一个空内容，脚本以为备份成功——这就是“假备份”，等到要恢复时才发现文件是空的。
 
 > 📸 截图：两次退出码对比
-
+![alt text](images/lab04-shell-inspect-cron-image-2.png)
 ---
 
 ## C. cron 定时执行
@@ -286,7 +287,7 @@ crontab -e            # 第一次会让选编辑器，选 vim 或 nano
 ```
 在末尾加一行：
 ```
-*/5 * * * * /home/vagrant/bin/inspect.sh > /dev/null 2>> /home/vagrant/inspect/cron-error.log
+*/2 * * * * /home/vagrant/bin/inspect.sh > /dev/null 2>> /home/vagrant/inspect/cron-error.log
 ```
 - 报告脚本自己会写，所以标准输出丢掉（`> /dev/null`）；**错误输出留下**，cron 出问题时靠它排查。
 - 路径全部写**绝对路径**：cron 的环境变量很少，不会加载你登录时的配置。
@@ -297,7 +298,8 @@ crontab -l            # 确认已保存
 等 5 分钟后：
 ```bash
 ls -lt ~/inspect/ | head          # 每 5 分钟多一份报告
-grep CRON /var/log/syslog | tail -5   # cron 的执行记录
+sudo grep CRON /var/log/syslog | tail -5   # cron 的执行记录（syslog 普通用户无权读，要 sudo）
+cat ~/inspect/cron-error.log               # 空 = cron 运行没有报错
 ```
 
 > 📸 截图：`crontab -l` + `~/inspect` 下自动生成的多份报告
@@ -340,7 +342,9 @@ ls -lh /backup
 ## 踩坑记录
 | 现象 | 原因 | 解决 |
 |------|------|------|
-| | | |
+| `grep CRON /var/log/syslog` 报 Permission denied | syslog 只有 root 和 adm 组可读 | 加 `sudo`；文档已修正 |
+| syslog 里的 `CRON[...]: (vagrant) CMD (... cron-error.log)` 被误以为是错误 | 这只是 cron 的执行记录，命令里正好写了 cron-error.log 这个路径 | 真正的错误看 `cat ~/inspect/cron-error.log`，为空就是正常 |
+| 合盖后巡检报告中断，唤醒后虚拟机时间不对 | 宿主机睡眠，虚拟机被冻结；cron 不补跑错过的任务 | 重启 timesyncd 校时，见 [00-lab-env 第 7 步](../00-lab-env/README.md)；需要补跑可用 anacron 或 systemd timer（`Persistent=true`） |
 
 （遇到报错把完整输出贴给 Claude，修正后记到这里）
 

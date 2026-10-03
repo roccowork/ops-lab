@@ -28,6 +28,7 @@ Thumbs.db
 # Vagrant
 .vagrant/
 .keys/
+export/
 *.log
 
 # 数据库导出（实验 03 用 /vagrant 传文件）

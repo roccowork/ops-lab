@@ -55,4 +55,5 @@
 - ✅ 00 环境 · ✅ 01 系统初始化 · ✅ 02 中间件（2026-10-01）
 - ✅ 03 MySQL 主从 + 备份恢复（2026-10-01）
 - ✅ 04 Shell 巡检脚本 + cron（2026-10-03）：master 上的 `~/bin/inspect.sh` 由 cron 每 5 分钟执行，报告写到 `~/inspect/`；node2 上的 `/usr/local/bin/mysql-backup.sh` 由 `/etc/cron.d/mysql-backup` 每天 02:00 执行
-- 📝 05 Ansible 入门：文档已写待验证（在 master 上用 apt 装 Ansible 2.10；项目目录 `~/ansible-lab`；inventory 分为 [web]=node1、[db]=node2、[lab:children]；master 不在 inventory 里；baseline.yml）
+- ✅ 05 Ansible 入门（2026-10-03）（在 master 上用 apt 装 Ansible 2.10；项目目录 `~/ansible-lab`；inventory 分为 [web]=node1、[db]=node2、[lab:children]；master 不在 inventory 里；baseline.yml 已对 node1、node2 设置 ClientAliveInterval 300 和 motd）
+- 📝 06 Ansible role：文档已写待验证。在全新的 **node3**（192.168.56.13，Vagrantfile 里设了 `autostart: false`）上用 roles baseline/web/redis 交付；inventory 的 [app] 组只有 node3；Vault 密码文件在 master 的 `~/.vault_pass`；node3 的 Nginx 后端是自己和 node2:8081。**不要对 node1、node2 跑 baseline**，它会打开 ufw，挡住 MySQL 复制。做完后由 master 把代码复制到 `/vagrant/export/ansible-lab`，Claude 再把它移到 `05-06-ansible/ansible-lab/` 并提交

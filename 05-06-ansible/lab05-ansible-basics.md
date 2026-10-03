@@ -1,6 +1,6 @@
 # 05 · Ansible 入门：inventory、ad-hoc、playbook
 
-> 状态：📝 文档已写，待验证
+> 状态：✅ 已跑通（2026-10-03）
 
 ## 目标
 在 master 上装好 Ansible，用它**一条命令同时管理 node1、node2**：
@@ -93,7 +93,8 @@ ansible-inventory --graph
 - `all` 是 Ansible 自带的组，代表清单里所有机器。
 
 > 📸 截图：`ansible --version` + `ansible-inventory --graph`
-
+![alt text](images/lab05-ansible-basics-image-1.png)
+![alt text](images/lab05-ansible-basics-image.png)
 ---
 
 ## B. ad-hoc：一行命令批量执行
@@ -109,6 +110,7 @@ ansible all -m ping
 这里的 `ping` 不是网络 ping，而是“能 SSH 上去 + 能运行 Python”。
 
 > 📸 截图：两台 `pong`
+![alt text](images/lab05-ansible-basics-image-2.png)
 
 ### B2. 批量执行命令
 在 **master** 上（`~/ansible-lab` 目录）：
@@ -140,6 +142,8 @@ ansible db -m apt -a "name=jq state=present" -b         # 再跑一次
 **这就是幂等：** 描述的是“最终状态”（jq 应该存在），而不是“动作”（去安装 jq）。跑多少次结果都一样。
 
 > 📸 截图：同一条命令先 CHANGED 再 SUCCESS（changed: false）
+![alt text](images/lab05-ansible-basics-image-3.png)
+![alt text](images/lab05-ansible-basics-image-4.png)
 
 ### B4. 其他常用模块
 在 **master** 上（`~/ansible-lab` 目录）：
@@ -242,6 +246,7 @@ node2 : ok=5  changed=4  unreachable=0  failed=0 ...
 - `RUNNING HANDLER [重启 sshd]` 出现了：因为 sshd 配置这一步 changed，触发了 handler。
 
 > 📸 截图：第一次运行的 PLAY RECAP（有 changed）
+![alt text](images/lab05-ansible-basics-image-5.png)
 
 ### C4. 第二次运行：验证幂等
 在 **master** 上（`~/ansible-lab` 目录）：
@@ -251,6 +256,7 @@ ansible-playbook baseline.yml
 预期：两台都是 **`changed=0`**，handler 也没有执行（配置没变，就不用重启 sshd）。
 
 > 📸 截图：第二次运行 `changed=0`
+![alt text](images/lab05-ansible-basics-image-6.png)
 
 再登录看看效果。在 **master** 上：
 ```bash
@@ -280,17 +286,23 @@ ansible all -m lineinfile -a "path=/home/vagrant/.bashrc line='export EDITOR=vim
 ---
 
 ## 验证清单
-- [ ] `ansible-inventory --graph` 显示 web、db 两组
-- [ ] `ansible all -m ping` 两台 pong
-- [ ] 能说清 `command` 和 `shell` 的区别
-- [ ] `baseline.yml` 第一次运行有 changed，并触发了 handler
-- [ ] 第二次运行两台都是 `changed=0`
-- [ ] 能说清什么是幂等，以及为什么 `shell: echo >> 文件` 不幂等
+- [x] `ansible-inventory --graph` 显示 web、db 两组
+- [x] `ansible all -m ping` 两台 pong
+- [x] 能说清 `command` 和 `shell` 的区别
+- [x] `baseline.yml` 第一次运行有 changed，并触发了 handler
+- [x] 第二次运行两台都是 `changed=0`
+- [x] 能说清什么是幂等，以及为什么 `shell: echo >> 文件` 不幂等
 
 ## 故障演练（选做，推荐）
 1. **主机连不上：** 在 inventory 的 `[web]` 下加一行 `node3`，执行 `ansible all -m ping`，看 `UNREACHABLE` 和报错信息；删掉这一行。
 2. **YAML 缩进错误：** 把 `baseline.yml` 里某个 task 的 `name:` 多缩进两格，执行 `--syntax-check` 看报错提示的行号。
-3. **validate 拦住错误配置：** 把 sshd 那一步的 `line` 临时改成 `'ClientAliveInterval abc'`，运行 playbook，看任务失败、但 `/etc/ssh/sshd_config` 没被改坏（SSH 依然能连）；改回 300。
+3. **validate 拦住错误配置：** 在 **master** 上（`~/ansible-lab` 目录）：
+   - `vim baseline.yml`，把 sshd 那个 task 里的 `line: 'ClientAliveInterval 300'` 改成 `line: 'ClientAliveInterval abc'`
+   - `ansible-playbook baseline.yml` → 这个 task 红色 FAILED，报错里有 sshd 检查不通过的信息
+   - `ansible all -b -m command -a "grep ClientAliveInterval /etc/ssh/sshd_config"` → 仍然是 300，说明没被改坏；`ansible all -m ping` 照样能连
+   - 把 `abc` 改回 `300`
+
+   原理：`validate` 先把新内容写进临时文件，用 `sshd -t` 检查，通过了才替换真正的配置文件。
 
 每个按 [故障模板](../_templates/incident.md) 在 `troubleshooting/` 写一篇复盘。
 

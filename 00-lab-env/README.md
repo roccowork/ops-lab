@@ -14,6 +14,7 @@
 | master | 192.168.56.10 | Ubuntu 22.04 | 1G / 4G | 控制节点（跑 Ansible、K8s 控制面） |
 | node1 | 192.168.56.11 | Ubuntu 22.04 | 1G / 2.5G | 工作节点 |
 | node2 | 192.168.56.12 | Ubuntu 22.04 | 1G / 2.5G | 工作节点 |
+| node3 | 192.168.56.13 | Ubuntu 22.04 | 1G / 2.5G | 可选的“新机器”（实验 06）；`autostart: false`，需要时 `vagrant up node3`，用完 `vagrant destroy -f node3` |
 
 - 网卡：NAT + Host-Only 两块，分工见下
 - 宿主机：Windows 11 Home，16GB，VirtualBox + Vagrant 2.4.9

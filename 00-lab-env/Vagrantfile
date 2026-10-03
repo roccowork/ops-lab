@@ -16,6 +16,8 @@ NODES = [
   { name: "master", ip: "192.168.56.10", mem: profile["master"] },
   { name: "node1",  ip: "192.168.56.11", mem: profile["node"] },
   { name: "node2",  ip: "192.168.56.12", mem: profile["node"] },
+  # 实验 06 用的“新机器”：autostart: false，vagrant up 不会启动它，要单独 vagrant up node3
+  { name: "node3",  ip: "192.168.56.13", mem: profile["node"], autostart: false },
 ]
 
 Vagrant.configure("2") do |config|
@@ -23,7 +25,7 @@ Vagrant.configure("2") do |config|
   config.vm.box_check_update = false
 
   NODES.each do |n|
-    config.vm.define n[:name] do |node|
+    config.vm.define n[:name], autostart: n.fetch(:autostart, true) do |node|
       node.vm.hostname = n[:name]
       node.vm.network "private_network", ip: n[:ip]
       node.vm.provider "virtualbox" do |vb|

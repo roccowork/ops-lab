@@ -9,6 +9,7 @@ if ! grep -q "ops-lab" /etc/hosts; then
 192.168.56.10 master
 192.168.56.11 node1
 192.168.56.12 node2
+192.168.56.13 node3
 EOF
 fi
 

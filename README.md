@@ -19,8 +19,8 @@
 | 03 | MySQL 主从复制 + 备份与恢复 | [01-04-linux](01-04-linux/lab03-mysql-replication-backup.md) | 数据库高可用基础 | ✅ |
 | 04 | Shell 脚本实战：服务器巡检脚本 + cron 定时执行 | [01-04-linux](01-04-linux/lab04-shell-inspect-cron.md) | 变量、判断、循环、函数、退出码、定时任务 | ✅ |
 | 05 | Ansible：inventory、ad-hoc、playbook | [05-06-ansible](05-06-ansible/lab05-ansible-basics.md) | 批量管理 | ✅ |
-| 06 | Ansible role 化：把实验 01、02 自动化，重跑 `changed=0` | [05-06-ansible](05-06-ansible/lab06-ansible-roles.md) | 幂等、模板、变量、Vault | 📝 待验证 |
-| 07 | Docker 基础 + 编写 Dockerfile 构建自己的镜像 | [07-08-docker](07-08-docker/) | 镜像、容器、分层、多阶段构建 | ⬜ |
+| 06 | Ansible role 化：把实验 01、02 自动化，重跑 `changed=0` | [05-06-ansible](05-06-ansible/lab06-ansible-roles.md) | 幂等、模板、变量、Vault | ✅ |
+| 07 | Docker 基础 + 编写 Dockerfile 构建自己的镜像 | [07-08-docker](07-08-docker/lab07-docker-basics.md) | 镜像、容器、分层、多阶段构建 | 📝 待验证 |
 | 08 | Docker Compose 部署 Web + MySQL + Redis | [07-08-docker](07-08-docker/) | 多容器编排、网络、数据卷 | ⬜ |
 | 09 | 虚拟机上手动装 Prometheus + node_exporter + Grafana | [09-11-observability](09-11-observability/) | 指标采集、PromQL、面板 | ⬜ |
 | 10 | Alertmanager：服务挂掉 1 分钟内收到告警 | [09-11-observability](09-11-observability/) | 告警规则、通知 | ⬜ |

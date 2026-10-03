@@ -1,6 +1,6 @@
 # 06 · Ansible role 化：新机器一键交付实验 01、02 的成果
 
-> 状态：📝 文档已写，待验证
+> 状态：✅ 已跑通（2026-10-03）· 代码：[ansible-lab/](ansible-lab/)
 
 ## 目标
 把实验 01（系统初始化）和实验 02（Nginx + 后端 + Redis）里手敲的几十条命令，写成 3 个可复用的 **role**，然后：
@@ -449,7 +449,7 @@ EOF
 - 以后要改密码：`ansible-vault edit group_vars/app/vault.yml`。
 
 > 📸 截图：`cat vault.yml` 的密文 + `ansible-vault view` 的明文
-
+![alt text](images/lab06-ansible-roles-image.png)
 ---
 
 ## F. 一键交付
@@ -467,8 +467,8 @@ cat > site.yml <<'EOF'
     - web
     - redis
 EOF
-tree -L 3 .
-ansible-playbook site.yml --syntax-check
+tree -L 3 . #打印当前目录，只往下看 3 级，不会无限递归。
+ansible-playbook site.yml --syntax-check #打印 playbook: site.yml
 ```
 role 按顺序执行：`baseline` 先开防火墙，`web`、`redis` 再各自放行端口。
 
@@ -480,6 +480,9 @@ ansible-playbook site.yml
 node3 是新机器，大部分任务都是 `changed`，最后会依次执行几个 handler。PLAY RECAP 要求 **`failed=0`**。
 
 > 📸 截图：第一次运行的 PLAY RECAP
+![alt text](images/lab06-ansible-roles-image-3.png)
+![alt text](images/lab06-ansible-roles-image-1.png)
+![alt text](images/lab06-ansible-roles-image-2.png)
 
 ### F3. 第二次运行：幂等
 在 **master** 上（`~/ansible-lab` 目录）：
@@ -489,6 +492,9 @@ ansible-playbook site.yml
 预期 **`changed=0`**，handler 一个都不执行。如果某个任务每次都 changed，说明它写得不幂等，把输出截图发给 Claude 一起排查。
 
 > 📸 截图：第二次运行 `changed=0`
+![alt text](images/lab06-ansible-roles-image-4.png)
+![alt text](images/lab06-ansible-roles-image-5.png)
+![alt text](images/lab06-ansible-roles-image-6.png)
 
 ### F4. 验证交付结果
 在 **master** 上：
@@ -507,7 +513,8 @@ redis-cli -h 192.168.56.13 -a 'Redis@12345' ping   # PONG
 ```
 
 > 📸 截图：curl 交替结果 + node2 上 NOAUTH 和 PONG
-
+![alt text](images/lab06-ansible-roles-image-7.png)
+![alt text](images/lab06-ansible-roles-image-8.png)
 ---
 
 ## G. 配置漂移：发现并自动纠正
@@ -537,7 +544,7 @@ role defaults  <  inventory / group_vars  <  play vars  <  -e 命令行
 ```
 
 > 📸 截图：`--check --diff` 显示 MaxAuthTries 的差异
-
+![alt text](images/lab06-ansible-roles-image-9.png)
 ---
 
 ## H. 把代码保存到仓库
@@ -554,13 +561,13 @@ ls /vagrant/export/ansible-lab
 ---
 
 ## 验证清单
-- [ ] `ansible-playbook site.yml` 第一次运行 `failed=0`
-- [ ] 第二次运行 `changed=0`
-- [ ] master `curl node3` 在 node3、node2 之间轮询
-- [ ] `ssh ops@node3` 免密登录；密码登录被拒绝
-- [ ] node2 访问 node3 的 Redis：不带密码 NOAUTH，带密码 PONG
-- [ ] `vault.yml` 是密文，`ansible-vault view` 能看到明文
-- [ ] 手工改坏的配置能被 `--check --diff` 发现，并被 playbook 纠正
+- [x] `ansible-playbook site.yml` 第一次运行 `failed=0`
+- [x] 第二次运行 `changed=0`
+- [x] master `curl node3` 在 node3、node2 之间轮询
+- [x] `ssh ops@node3` 免密登录；密码登录被拒绝
+- [x] node2 访问 node3 的 Redis：不带密码 NOAUTH，带密码 PONG
+- [x] `vault.yml` 是密文，`ansible-vault view` 能看到明文
+- [x] 手工改坏的配置能被 `--check --diff` 发现，并被 playbook 纠正
 
 ## 故障演练（选做，推荐）
 1. **不幂等的密码：** 把 baseline 里的 `password_hash('sha512', 'opslabsalt')` 改成 `password_hash('sha512')`，并删掉 `update_password: on_create`，连跑两次，看“创建运维账号”这个任务每次都 changed。改回去。

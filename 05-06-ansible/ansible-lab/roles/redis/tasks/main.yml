@@ -1,0 +1,35 @@
+---
+- name: 安装 Redis
+  ansible.builtin.apt:
+    name: redis-server
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: 监听地址
+  ansible.builtin.lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: '^bind '
+    line: "bind {{ redis_bind }}"
+  notify: 重启 redis
+
+- name: 访问密码
+  ansible.builtin.lineinfile:
+    path: /etc/redis/redis.conf
+    regexp: '^#?\s*requirepass '
+    line: "requirepass {{ redis_password }}"
+  no_log: true
+  notify: 重启 redis
+
+- name: 防火墙只对内网放行 6379
+  community.general.ufw:
+    rule: allow
+    port: "6379"
+    proto: tcp
+    from_ip: "{{ redis_allow_from }}"
+
+- name: 确保 Redis 运行并开机自启
+  ansible.builtin.service:
+    name: redis-server
+    state: started
+    enabled: true

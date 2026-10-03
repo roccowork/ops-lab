@@ -1,0 +1,40 @@
+---
+- name: 创建运维账号并加入 sudo 组
+  ansible.builtin.user:
+    name: "{{ ops_user }}"
+    shell: /bin/bash
+    groups: sudo
+    append: true
+    password: "{{ ops_password | password_hash('sha512', 'opslabsalt') }}"
+    update_password: on_create
+
+- name: 给运维账号配置 master 的公钥
+  ansible.posix.authorized_key:
+    user: "{{ ops_user }}"
+    key: "{{ lookup('file', lookup('env', 'HOME') + '/.ssh/id_ed25519.pub') }}"
+
+- name: SSH 加固
+  ansible.builtin.template:
+    src: 10-hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/10-hardening.conf
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: 重启 sshd
+
+- name: 时间同步使用阿里云 NTP
+  ansible.builtin.lineinfile:
+    path: /etc/systemd/timesyncd.conf
+    regexp: '^#?NTP='
+    line: "NTP={{ ntp_server }}"
+  notify: 重启 timesyncd
+
+- name: 防火墙放行 SSH（必须先放行再启用）
+  community.general.ufw:
+    rule: allow
+    name: OpenSSH
+
+- name: 防火墙默认拒绝入站，并启用
+  community.general.ufw:
+    state: enabled
+    direction: incoming
+    policy: deny

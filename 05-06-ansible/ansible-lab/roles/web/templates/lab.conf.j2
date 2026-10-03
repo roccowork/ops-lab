@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+upstream backend {
+{% for server in backend_servers %}
+    server {{ server }};
+{% endfor %}
+}
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    access_log /var/log/nginx/lab_access.log;
+    error_log  /var/log/nginx/lab_error.log;
+
+    location / {
+        proxy_pass http://backend;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 2s;
+    }
+
+    location /nginx_status {
+        stub_status;
+        allow 127.0.0.1;
+        deny all;
+    }
+}

@@ -1,0 +1,8 @@
+---
+- name: 新机器一键交付（实验 01 + 02）
+  hosts: app
+  become: true
+  roles:
+    - baseline
+    - web
+    - redis

@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+[Unit]
+Description=Lab web backend
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 -m http.server {{ backend_port }} --directory /srv/web
+User=www-data
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

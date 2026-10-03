@@ -1,0 +1,11 @@
+---
+- name: 重启 web-backend
+  ansible.builtin.systemd:
+    name: web-backend
+    state: restarted
+    daemon_reload: true
+
+- name: 重载 nginx
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

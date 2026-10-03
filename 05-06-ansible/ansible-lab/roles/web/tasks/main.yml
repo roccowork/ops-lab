@@ -1,0 +1,64 @@
+---
+- name: 安装 Nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: 后端网页目录
+  ansible.builtin.file:
+    path: /srv/web
+    state: directory
+    mode: "0755"
+
+- name: 后端首页
+  ansible.builtin.template:
+    src: index.html.j2
+    dest: /srv/web/index.html
+    mode: "0644"
+
+- name: 后端 systemd 服务文件
+  ansible.builtin.template:
+    src: web-backend.service.j2
+    dest: /etc/systemd/system/web-backend.service
+    mode: "0644"
+  notify: 重启 web-backend
+
+- name: 启动后端并设为开机自启
+  ansible.builtin.systemd:
+    name: web-backend
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Nginx 站点配置
+  ansible.builtin.template:
+    src: lab.conf.j2
+    dest: /etc/nginx/sites-available/lab.conf
+    mode: "0644"
+  notify: 重载 nginx
+
+- name: 启用站点（软链接）
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/lab.conf
+    dest: /etc/nginx/sites-enabled/lab.conf
+    state: link
+  notify: 重载 nginx
+
+- name: 删除默认站点
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: 重载 nginx
+
+- name: 防火墙放行 80
+  community.general.ufw:
+    rule: allow
+    name: Nginx HTTP
+
+- name: 确保 Nginx 运行并开机自启
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true

@@ -1,6 +1,6 @@
 # 04 · Shell 脚本实战：服务器巡检 + cron 定时执行
 
-> 状态：📝 文档已写，待验证
+> 状态：✅ 已跑通（2026-10-03）
 
 ## 目标
 写两个运维日常真的会用的脚本，并让它们自动定时运行：
@@ -287,7 +287,7 @@ crontab -e            # 第一次会让选编辑器，选 vim 或 nano
 ```
 在末尾加一行：
 ```
-*/2 * * * * /home/vagrant/bin/inspect.sh > /dev/null 2>> /home/vagrant/inspect/cron-error.log
+*/5 * * * * /home/vagrant/bin/inspect.sh > /dev/null 2>> /home/vagrant/inspect/cron-error.log
 ```
 - 报告脚本自己会写，所以标准输出丢掉（`> /dev/null`）；**错误输出留下**，cron 出问题时靠它排查。
 - 路径全部写**绝对路径**：cron 的环境变量很少，不会加载你登录时的配置。
@@ -303,6 +303,8 @@ cat ~/inspect/cron-error.log               # 空 = cron 运行没有报错
 ```
 
 > 📸 截图：`crontab -l` + `~/inspect` 下自动生成的多份报告
+![alt text](images/lab04-shell-inspect-cron-image-3.png)
+![alt text](images/lab04-shell-inspect-cron-image-4.png)
 
 ### C3. 备份每天 02:00 跑一次（node2）
 系统级的定时任务放在 `/etc/cron.d/`，比 `sudo crontab -e` 更直观，文件还能被 Ansible 管理。在 **node2** 上：
@@ -322,15 +324,15 @@ ls -lh /backup
 确认后**改回 `0 2 * * *`**。
 
 > 📸 截图：`/var/log/mysql-backup.log` 里 cron 自动执行的“备份成功”
-
+![alt text](images/lab04-shell-inspect-cron-image-5.png)
 ---
 
 ## 验证清单
-- [ ] `inspect.sh` 手动运行全 OK，退出码 0
-- [ ] 停掉 redis-server 后出现 `[WARN]`，退出码 1
-- [ ] 能讲清 `pipefail`：不加时 mysqldump 失败但退出码仍为 0
-- [ ] master 的 cron 每 5 分钟生成一份巡检报告
-- [ ] node2 的 cron 能自动执行备份，日志里有“备份成功”
+- [x] `inspect.sh` 手动运行全 OK，退出码 0
+- [x] 停掉 redis-server 后出现 `[WARN]`，退出码 1
+- [x] 能讲清 `pipefail`：不加时 mysqldump 失败但退出码仍为 0
+- [x] master 的 cron 每 5 分钟生成一份巡检报告
+- [x] node2 的 cron 能自动执行备份，日志里有“备份成功”
 
 ## 故障演练（选做，推荐）
 1. **手动能跑、cron 里不跑：** 把 crontab 里的 `/home/vagrant/bin/inspect.sh` 改成 `inspect.sh`（相对路径），等 5 分钟，看 `cron-error.log` 报 `inspect.sh: not found`。原因：cron 的 PATH 只有 `/usr/bin:/bin`。这是 cron 最经典的坑。
@@ -344,6 +346,7 @@ ls -lh /backup
 |------|------|------|
 | `grep CRON /var/log/syslog` 报 Permission denied | syslog 只有 root 和 adm 组可读 | 加 `sudo`；文档已修正 |
 | syslog 里的 `CRON[...]: (vagrant) CMD (... cron-error.log)` 被误以为是错误 | 这只是 cron 的执行记录，命令里正好写了 cron-error.log 这个路径 | 真正的错误看 `cat ~/inspect/cron-error.log`，为空就是正常 |
+| vim 保存时报 `wq: command not found`，反复出现 `Press ENTER` | 输成了 `:!wq`（`:!` 表示执行 shell 命令）；另外没有用 sudo 打开 root 的文件 | 回车 → Esc → `:q!` 退出；用 `sudo vim` 重新打开，`:wq` 保存 |
 | 合盖后巡检报告中断，唤醒后虚拟机时间不对 | 宿主机睡眠，虚拟机被冻结；cron 不补跑错过的任务 | 重启 timesyncd 校时，见 [00-lab-env 第 7 步](../00-lab-env/README.md)；需要补跑可用 anacron 或 systemd timer（`Persistent=true`） |
 
 （遇到报错把完整输出贴给 Claude，修正后记到这里）

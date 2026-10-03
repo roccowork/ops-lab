@@ -54,4 +54,5 @@
 ## 进度
 - ✅ 00 环境 · ✅ 01 系统初始化 · ✅ 02 中间件（2026-10-01）
 - ✅ 03 MySQL 主从 + 备份恢复（2026-10-01）
-- 📝 04 Shell 巡检脚本 + cron：文档已写待验证（在 master 上通过 ssh 巡检两台 node；在 node2 上定时备份 MySQL）
+- ✅ 04 Shell 巡检脚本 + cron（2026-10-03）：master 上的 `~/bin/inspect.sh` 由 cron 每 5 分钟执行，报告写到 `~/inspect/`；node2 上的 `/usr/local/bin/mysql-backup.sh` 由 `/etc/cron.d/mysql-backup` 每天 02:00 执行
+- 📝 05 Ansible 入门：文档已写待验证（在 master 上用 apt 装 Ansible 2.10；项目目录 `~/ansible-lab`；inventory 分为 [web]=node1、[db]=node2、[lab:children]；master 不在 inventory 里；baseline.yml）

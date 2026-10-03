@@ -263,5 +263,24 @@ sudo sshd -t && echo "config OK"
 vagrant snapshot restore node1 base    # 只把 node1 恢复到干净状态
 ```
 
+## 面试题速答
+**1. 拿到一台新服务器，你会做哪些初始化？**
+按顺序：先看清机器（系统版本、CPU、内存、磁盘、网卡）→ 创建运维账号，加入 sudo 组，配置密钥登录 → SSH 加固（禁止 root 登录、禁止密码登录）→ 防火墙默认拒绝入站、只放行需要的端口 → 配置时间同步 → 业务程序交给 systemd 托管。（步骤 1–6）
+
+**2. SSH 怎么加固？改配置时怎么避免把自己锁在外面？**
+在 `sshd_config.d/` 下新建一个文件写加固项：`PermitRootLogin no`、`PasswordAuthentication no`、`MaxAuthTries 3`、`ClientAliveInterval`。sshd 对同一个参数只认第一次读到的值，所以文件名用 `10-` 开头，保证最先被读到。防止锁死：重启前先 `sshd -t` 检查语法；重启后不关当前窗口，另开一个窗口确认还能登录。（步骤 3）
+
+**3. 密钥登录的原理？**
+客户端生成一对密钥，公钥放到服务器的 `~/.ssh/authorized_keys`，私钥留在客户端。登录时服务器用公钥出一道题，只有持有私钥的一方能答对，整个过程不传输密码。（步骤 2，实验 00）
+
+**4. 开 ufw 防火墙要注意什么？**
+必须先 `ufw allow OpenSSH` 再 `ufw enable`，否则当前 SSH 连接会被切断。原则是默认拒绝入站（`default deny incoming`），只放行需要的端口，能限制来源网段就限制（如 `from 192.168.56.0/24`）。（步骤 4）
+
+**5. 服务器为什么要做时间同步？**
+时间不一致会导致：多台机器的日志对不上、无法按时间排查问题；HTTPS 证书校验失败；K8s、etcd 这类集群出错；cron 定时任务在错误的时间执行。（步骤 5）
+
+**6. 怎么把一个程序交给 systemd 管理？关键配置有哪些？**
+在 `/etc/systemd/system/` 写 `xxx.service`：`ExecStart` 指定启动命令，`User` 用普通用户运行，`Restart=always` 让进程退出后自动拉起，`WantedBy=multi-user.target` 配合 `enable` 实现开机自启。新增或修改 unit 文件后要 `systemctl daemon-reload`；日志用 `journalctl -u 服务名` 查看。（步骤 6）
+
 ## 简历表述
 > 制定 Linux 服务器初始化基线：专用运维账号与 sudo 授权、SSH 仅密钥登录并禁用 root、ufw 最小端口放行、NTP 时间同步，并使用 systemd 托管业务进程实现开机自启与崩溃自动恢复。

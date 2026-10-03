@@ -299,5 +299,36 @@ vagrant snapshot restore node1 base
 vagrant snapshot restore node2 base
 ```
 
+## 面试题速答
+**1. 什么是反向代理？什么是负载均衡？**
+反向代理：用户只访问 Nginx，由 Nginx 把请求转给后端，后端不直接暴露；HTTPS、限流、日志可以在 Nginx 一处统一处理。负载均衡：`upstream` 里写多个后端，Nginx 把请求分摊给它们，其中一台挂了也能继续服务。（A3、A4）
+
+**2. Nginx 负载均衡有哪些策略？**
+默认**轮询**（本实验 node1、node2 交替）；`weight` 按权重分配，机器配置不同时使用；`ip_hash` 让同一个客户端 IP 固定访问同一台后端，用于会话保持；`least_conn` 优先发给当前连接数最少的后端。
+
+**3. 遇到 502 怎么排查？和 504 有什么区别？**
+502 Bad Gateway：Nginx 本身正常，但连不上后端或者后端返回了错误响应。排查：看 Nginx 的 `error.log`（本实验是 `Connection refused`）→ 检查后端进程在不在、端口有没有在监听（`ss -tlnp`）。504 Gateway Timeout：连上了后端，但后端处理太慢、超过了超时时间。（A4）
+
+**4. reload 和 restart 有什么区别？**
+`reload` 不中断现有连接，平滑加载新配置；`restart` 会先停止再启动，正在进行的请求会被断开。修改配置后用 `nginx -t` 检查，通过后再 `reload`。（A3）
+
+**5. MySQL 远程连接不上怎么排查？**
+按顺序检查四步：
+1. `ss -tlnp | grep 3306`：是不是只监听 127.0.0.1（`bind-address`）
+2. `nc -zv 主机 3306`：网络和防火墙是否通
+3. `SELECT user,host FROM mysql.user`：账号的 host 是否允许你的来源 IP
+4. 看 `error.log`：服务本身有没有报错
+
+（B3、B4）
+
+**6. 报 `Access denied for user` 有哪些原因？**
+密码错误；账号的 host 不匹配，MySQL 里“用户名 + 来源地址”才是一个完整账号，`'app'@'192.168.56.%'` 从其他网段登录就会被拒绝；没有对应库的权限。应用账号只授予自己库的权限，不使用 root。（B2）
+
+**7. Redis 报 NOAUTH 是什么意思？Redis 怎么做安全加固？**
+NOAUTH 表示设置了密码但连接时没有认证，要带上 `-a 密码` 或先执行 `AUTH`。加固方法：`bind` 只监听内网地址；设置 `requirepass`；防火墙只对内网放行 6379；不要用 root 运行。Redis 不设密码暴露在公网，是被入侵的常见原因。（C2、C3）
+
+**8. Redis 的 RDB 和 AOF 有什么区别？**
+RDB 定期把内存数据存成快照文件（`dump.rdb`），文件小、恢复快，但两次快照之间的数据可能丢失；AOF 记录每一条写命令，最多丢失约 1 秒的数据，但文件更大、恢复更慢。生产上常两者同时开启。（C4）
+
 ## 简历表述
 > 部署 Nginx 反向代理与负载均衡（upstream 轮询、故障自动切换），并完成 MySQL 8.0 与 Redis 的安装、远程访问、最小权限账号与密码认证配置；能根据 502、Access denied、NOAUTH 等报错定位到后端进程、监听地址与授权问题。

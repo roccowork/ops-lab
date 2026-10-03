@@ -590,5 +590,34 @@ vagrant destroy -f node3
 ```
 roles 已经保存，以后要用随时 `vagrant up node3` + `ansible-playbook site.yml` 重新交付（A2 的公钥步骤要再做一次）。
 
+## 面试题速答
+**1. role 的目录结构是什么样的？**
+`tasks/main.yml`：要执行的任务，必须有；`handlers/`：被 notify 才执行的操作；`templates/`：Jinja2 模板；`files/`：原样复制的文件；`defaults/`：变量默认值，优先级最低；`vars/`：role 内部变量，优先级较高；`meta/`：依赖关系。用 `ansible-galaxy init` 可以生成完整的目录骨架。（B1）
+
+**2. 为什么要用 role？**
+把一类功能（初始化、Nginx、Redis）封装成独立的模块，可以复用、组合：新机器需要什么功能，就在 playbook 里列出对应的 role。本实验 `site.yml` 只有几行，组合了 baseline、web、redis 三个 role。（F1）
+
+**3. 变量优先级是怎样的？**
+常用的几层从低到高：role defaults < inventory 和 group_vars < play 里的 vars < 命令行 `-e`。所以 role 的 defaults 只放默认值，各环境的差异放到 group_vars 里覆盖，临时调整用 `-e`。（G）
+
+**4. 密码这类敏感信息怎么管理？**
+用 Ansible Vault 加密变量文件：`ansible-vault create/edit/view`。加密后的文件可以安全地提交到 Git，Vault 主密码单独保存（如 `~/.vault_pass`，权限 600），不放进项目目录。推荐写法：明文的 `vars.yml` 引用 `vault_` 开头的变量，具体的值放在加密的 `vault.yml` 里。（E2）
+
+**5. template 和 copy 有什么区别？**
+`copy` 原样复制文件；`template` 先用 Jinja2 渲染（替换 `{{ 变量 }}`、执行 `{% for %}` 循环）再下发，适合每台机器内容不一样的配置文件，例如 upstream 后端列表。（C2、D1）
+
+**6. 怎么保证 playbook 是幂等的？**
+- 优先使用模块，少用 `command`、`shell`；必须用时配合 `creates`、`changed_when` 参数
+- 避免每次结果都不同的写法，例如 `password_hash` 要固定盐值，并设置 `update_password: on_create`
+- 验证方法：连续运行两次，第二次必须 `changed=0`
+
+（C3、F3、故障演练 1）
+
+**7. 什么是配置漂移？怎么发现？**
+机器的实际状态和代码描述的不一致，通常是有人登录机器手工修改了配置。定期运行 `ansible-playbook --check --diff`，有 changed 就说明发生了漂移；再正常运行一次，就能把机器纠正回代码描述的状态。（G）
+
+**8. facts 是什么？**
+Ansible 在执行任务前自动收集的被管主机信息，比如主机名、IP、内存、系统版本，在 playbook 和模板里可以直接当变量使用，例如 `ansible_hostname`、`ansible_enp0s8.ipv4.address`。（D1、E1）
+
 ## 简历表述
 > 将服务器初始化（账号、SSH 加固、NTP、防火墙）和 Nginx 负载均衡、Redis 部署封装为 Ansible role，使用 Jinja2 模板、分层变量和 Ansible Vault 管理配置与密码，新服务器一条命令完成交付，重复执行 changed=0；通过 `--check --diff` 发现并纠正配置漂移。

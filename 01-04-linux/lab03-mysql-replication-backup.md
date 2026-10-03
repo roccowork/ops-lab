@@ -299,5 +299,35 @@ sudo mysql -e "STOP REPLICA; RESET REPLICA ALL;"
 ```
 完全重来：`vagrant snapshot restore node1 base`（node2 回到 base 会丢掉实验 02 的成果，慎用）。
 
+## 面试题速答
+**1. MySQL 主从复制的原理？**
+主库提交事务时写入 binlog；从库的 **IO 线程**连接主库，把 binlog 拉过来存成本地的 relay log（中继日志）；从库的 **SQL 线程**回放 relay log，使数据和主库一致。（“原理先看懂”一节）
+
+**2. GTID 是什么？有什么好处？**
+GTID 是每个事务的全局唯一编号，格式为 `server_uuid:序号`。从库会记录自己执行到了哪个编号，配置复制时用 `SOURCE_AUTO_POSITION=1` 自动定位，不需要手工查找 binlog 文件名和位置；切换主库、断线重连都更简单。（A1、A5）
+
+**3. 怎么判断主从是否正常？**
+在从库执行 `SHOW REPLICA STATUS\G`：`Replica_IO_Running` 和 `Replica_SQL_Running` 都是 Yes，并且 `Seconds_Behind_Source` 接近 0。哪个线程是 No，就看对应的 `Last_IO_Error` 或 `Last_SQL_Error`。（A5）
+
+**4. 主从复制中断了怎么处理？**
+- IO 线程异常：多数是网络不通、复制账号或密码错误、主库上的 binlog 已经被清理。
+- SQL 线程异常：多数是数据冲突，如主键重复（1062）、要删除的记录不存在。
+- 处理流程：根据错误信息让从库数据和主库一致（例如删掉冲突的那一行），然后 `START REPLICA`。不要随手跳过错误，否则主从数据会越来越不一致。数据差异太大时，重新做一次全量导出并重建从库。（故障演练 2）
+
+**5. 主从延迟的原因和解决办法？**
+原因：从库回放比主库执行慢（回放的并行度低）；大事务（一次修改几百万行）；从库机器配置差或负载高；网络慢。解决：开启并行复制（`replica_parallel_workers`）；把大事务拆成小批次；从库配置不低于主库；对一致性要求高的读请求直接查主库。
+
+**6. 主从复制能代替备份吗？**
+不能。主库执行 `DROP DATABASE`，从库也会立刻同步删除（B3 亲手验证过）。复制解决的是“机器坏了能切换”，备份解决的是“数据被误删、被改坏了能找回来”。
+
+**7. 误删了库怎么恢复？**
+先导入最近一次全量备份，回到备份那一刻；再用 `mysqlbinlog` 回放 binlog，从备份记录的位置开始，到误删操作之前停止。开启了 GTID 时回放要加 `--skip-gtids`，否则这些事务会被当作“已执行过”而静默跳过。（B1–B5）
+
+**8. 为什么从库要设置只读？**
+从库被误写会和主库数据不一致，之后同步到同一行时就会冲突，导致复制中断。`read_only` 只拦普通用户，`super_read_only` 连 root 也拦住；复制线程本身不受影响。（A7、故障演练 2）
+
+**9. mysqldump 的 `--single-transaction` 有什么用？**
+在一个一致性快照里导出 InnoDB 表，导出过程中**不锁表**，业务可以照常读写，导出的数据又是同一时间点的。只对 InnoDB 有效。（A3、B1）
+
 ## 简历表述
 > 搭建基于 GTID 的 MySQL 8.0 主从复制（从库 super_read_only），能通过 `SHOW REPLICA STATUS` 排查 IO/SQL 线程中断；使用 mysqldump + binlog 实现时间点恢复，完成误删库演练，并实施备份异地保存。

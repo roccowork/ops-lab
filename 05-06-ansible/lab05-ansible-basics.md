@@ -316,5 +316,27 @@ ansible all -m lineinfile -a "path=/home/vagrant/.bashrc line='export EDITOR=vim
 ## 回滚 / 清理
 本实验的改动都很小（几个工具包、motd、一行 sshd 配置），**不用清理**。`~/ansible-lab` 保留，实验 06 在此基础上把实验 01、02 改造成 role。
 
+## 面试题速答
+**1. Ansible 有什么特点？和 SaltStack、Puppet 有什么区别？**
+Ansible 是**无 agent** 的：被管节点只需要 SSH 和 Python，不用安装客户端；控制节点通过 SSH 把任务推送过去执行（push 模式）。配置用 YAML 编写，上手简单；模块大多是幂等的。SaltStack、Puppet 需要在每台机器上安装 agent。（环境一节）
+
+**2. ad-hoc 和 playbook 有什么区别？**
+ad-hoc 是一行命令执行一个模块，适合临时操作，比如批量查看磁盘、重启某个服务（B 部分）。playbook 是写在 YAML 文件里的一组任务，可以保存、复用、提交到 Git，适合需要反复执行的配置（C 部分）。
+
+**3. 什么是幂等？**
+同一个操作执行一次和执行多次，最终结果完全一样。Ansible 的模块描述的是“最终状态”（软件应该已安装），而不是“动作”（去安装软件）：执行前先检查，已经是目标状态就什么也不做。所以第二次运行 playbook 时 `changed=0`。（B3、C4）
+
+**4. command 和 shell 模块有什么区别？**
+`command` 直接执行程序，不经过 shell，不能使用管道 `|`、重定向 `>`、变量 `$HOME`、`~`，但更安全；`shell` 通过 `/bin/sh` 执行，这些都能用。两者都不是幂等的，每次都报 changed，能用专门的模块就不用它们。（B2、C5）
+
+**5. handler 什么时候执行？**
+只有被 `notify` 的任务状态是 **changed** 时才会触发，并且在所有任务执行完之后才执行；多个任务通知同一个 handler，也只执行一次。典型用法是改了配置文件才重启服务，配置没变就不重启。（C1、C3、C4）
+
+**6. 正式执行 playbook 之前怎么确认它会改什么？**
+`--syntax-check` 只检查语法；`--check --diff` 进行演练，显示哪些文件会怎么改，但不真正修改。生产环境改配置前必须先做这一步。（C2）
+
+**7. `become` 是什么？**
+提权，相当于用 sudo 执行。命令行加 `-b`，或者在 playbook 里写 `become: true`。安装软件、修改系统配置都需要提权。（B3、C1）
+
 ## 简历表述
 > 使用 Ansible 管理多台 Linux 服务器：编写 inventory 分组、ad-hoc 批量操作，以及带变量、handler、配置校验（validate）的 playbook 实现统一基础配置；理解并验证幂等性（重复执行 changed=0），使用 `--check --diff` 预演变更。
